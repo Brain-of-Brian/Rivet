@@ -90,6 +90,28 @@ func makeTasksRaw(_ list: [String]) -> String {
     list.joined(separator: "|||")
 }
 
+// which tasks have the X — indexes as strings
+func getDoneIndexes(_ raw: String) -> [Int] {
+    if raw == "" {
+        return []
+    }
+    var result: [Int] = []
+    for part in raw.components(separatedBy: "|||") {
+        if let n = Int(part) {
+            result.append(n)
+        }
+    }
+    return result
+}
+
+func makeDoneRaw(_ list: [Int]) -> String {
+    var parts: [String] = []
+    for n in list {
+        parts.append(String(n))
+    }
+    return parts.joined(separator: "|||")
+}
+
 let startingTasks = "Finish design brief|||Reply to team messages|||15-min walk outside|||Review feedback notes|||Draft revised homepage|||Send to Jordan for review"
 
 struct ContentView: View {
@@ -173,14 +195,23 @@ struct AppUsageCard: View {
 struct TaskRow: View {
     var index: Int
     @AppStorage("tasks") var tasksRaw = startingTasks
-    @State var isChecked = false
+    @AppStorage("doneIndexes") var doneRaw = ""
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
-        HStack {
+        let dones = getDoneIndexes(doneRaw)
+        let isChecked = dones.contains(index)
+        
+        HStack(alignment: .top) {
             // check circle
             Button {
-                isChecked.toggle()
+                var newDones = dones
+                if isChecked {
+                    newDones.removeAll { $0 == index }
+                } else {
+                    newDones.append(index)
+                }
+                doneRaw = makeDoneRaw(newDones)
             } label: {
                 ZStack {
                     Circle()
@@ -193,13 +224,22 @@ struct TaskRow: View {
                     }
                 }
             }
+            .padding(.top, 2)
             
-            // tap text goes to detail
+            // tap text goes to detail — title + full description under it
             if index < tasks.count {
                 NavigationLink(destination: TaskDetailPage(index: index)) {
-                    Text(tasks[index])
-                        .font(.subheadline)
-                        .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tasks[index])
+                            .font(.headline)
+                            .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
+                            .lineLimit(1)
+                        // full description under the task
+                        Text(tasks[index])
+                            .font(.caption)
+                            .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.DeepMariner.color)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             
@@ -211,6 +251,7 @@ struct TaskRow: View {
                 .foregroundStyle(IceWhitePalette.PureSnow.color)
         )
         .padding(.horizontal, 20)
+        .padding(.vertical, 4)
     }
 }
 
@@ -338,6 +379,7 @@ struct Dashboard: View {
 
 struct TasksPage: View {
     @AppStorage("tasks") var tasksRaw = startingTasks
+    @AppStorage("doneIndexes") var doneRaw = ""
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
@@ -385,11 +427,36 @@ struct TasksPage: View {
                     }
                     .padding(.horizontal, 25)
                     .padding(.top, 25)
+                    .padding(.bottom, 20)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 350)
             .ignoresSafeArea(edges: .top)
+            
+            // remove button under the blue header — clears tasks with an X
+            Button {
+                var newTasks: [String] = []
+                let dones = getDoneIndexes(doneRaw)
+                for i in 0..<tasks.count {
+                    if !dones.contains(i) {
+                        newTasks.append(tasks[i])
+                    }
+                }
+                tasksRaw = makeTasksRaw(newTasks)
+                doneRaw = ""
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 50)
+                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                    Text("Remove")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            .padding(.horizontal, 25)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
             
             ZStack {
                 RoundedRectangle(cornerRadius: 0)
@@ -405,7 +472,6 @@ struct TasksPage: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                .padding(.top, 20)
             }
             .frame(maxHeight: .infinity)
         }
