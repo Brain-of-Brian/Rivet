@@ -133,132 +133,12 @@ func makeDoneRaw(_ list: [Int]) -> String {
     return parts.joined(separator: "|||")
 }
 
-// same delete for every task screen — pulls one task out + fixes done indexes
-func deleteTaskAt(_ index: Int, tasksRaw: inout String, doneRaw: inout String) {
-    var tasks = getTasks(tasksRaw)
-    if index < 0 || index >= tasks.count {
-        return
-    }
-    tasks.remove(at: index)
-    tasksRaw = makeTasksRaw(tasks)
-    
-    var newDones: [Int] = []
-    for d in getDoneIndexes(doneRaw) {
-        if d < index {
-            newDones.append(d)
-        } else if d > index {
-            newDones.append(d - 1)
-        }
-    }
-    doneRaw = makeDoneRaw(newDones)
-}
-
-// same save for every task screen
-func saveTaskAt(_ index: Int, name: String, description: String, tasksRaw: inout String) {
-    var tasks = getTasks(tasksRaw)
-    if index < 0 || index >= tasks.count {
-        return
-    }
-    tasks[index] = makePackedTask(name, description)
-    tasksRaw = makeTasksRaw(tasks)
-}
-
-// bottom buttons every task page always uses (shells for now)
-struct TaskScreenBottomActions: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Button {
-                // confirm done — empty shell for now
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("Confirm task is done")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-            
-            Button {
-                // AI break it down — empty shell for now
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(ContentView.Background1)
-                    Text("AI break it down")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 40)
-    }
-}
-
-// Delete + Save toolbar — same for every task detail screen going forward
-struct TaskScreenToolbarModifier: ViewModifier {
-    var index: Int
-    @Binding var name: String
-    @Binding var text: String
-    @AppStorage("tasks") var tasksRaw = startingTasks
-    @AppStorage("doneIndexes") var doneRaw = ""
-    @Environment(\.dismiss) var dismiss
-    
-    func body(content: Content) -> some View {
-        content
-            .navigationTitle("Task")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
-                    Button("Delete") {
-                        var tasksCopy = tasksRaw
-                        var donesCopy = doneRaw
-                        deleteTaskAt(index, tasksRaw: &tasksCopy, doneRaw: &donesCopy)
-                        tasksRaw = tasksCopy
-                        doneRaw = donesCopy
-                        dismiss()
-                    }
-                    .foregroundStyle(.red)
-                    
-                    Button("Save") {
-                        var tasksCopy = tasksRaw
-                        saveTaskAt(index, name: name, description: text, tasksRaw: &tasksCopy)
-                        tasksRaw = tasksCopy
-                    }
-                }
-            }
-    }
-}
-
-extension View {
-    // slap the standard task features on any future task page
-    func taskScreenFeatures(index: Int, name: Binding<String>, text: Binding<String>) -> some View {
-        modifier(TaskScreenToolbarModifier(index: index, name: name, text: text))
-    }
-}
-
 let startingTasks = "Finish design brief:::Review feedback and ship the brief|||Reply to team messages:::Catch up on Slack and email|||15-min walk outside:::Take a short walk to reset|||Review feedback notes:::Go through notes from design review|||Draft revised homepage:::Update the homepage layout|||Send to Jordan for review:::Send the latest draft over"
 
 // look toggles can all be on at once
 // fullColors = one solid palette color (no gradient mixes)
 // contrast = summersky on dark, midnight navy on white
 // simplify = strip extra UI / tighter headers
-
-// when UI is drawn on the phone canvas then scaled up (iPad),
-// we fake a phone notch inset so headers match iPhone
-private struct DesignSafeTopKey: EnvironmentKey {
-    static let defaultValue: CGFloat = 0
-}
-
-extension EnvironmentValues {
-    var designSafeTop: CGFloat {
-        get { self[DesignSafeTopKey.self] }
-        set { self[DesignSafeTopKey.self] = newValue }
-    }
-}
 
 func modeAccent(contrastOn: Bool, fullColorsOn: Bool) -> Color {
     if contrastOn {
@@ -326,59 +206,43 @@ struct TopSafeHeader<Content: View>: View {
     var cornerRadius: CGFloat
     var contrastOn: Bool
     var fullColorsOn: Bool
-    @Environment(\.designSafeTop) var designSafeTop
     @ViewBuilder var content: () -> Content
     
     var body: some View {
-        Group {
-            if designSafeTop > 0 {
-                // scaled phone canvas — use the fake notch inset
-                content()
-                    .padding(.top, designSafeTop)
-            } else {
-                // real phone — use the device safe area
-                content()
-                    .safeAreaPadding(.top)
+        content()
+            .frame(maxWidth: .infinity)
+            .safeAreaPadding(.top)
+            .background {
+                modeDarkHeaderShape(cornerRadius: cornerRadius, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
+                    .ignoresSafeArea(edges: .top)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .background {
-            modeDarkHeaderShape(cornerRadius: cornerRadius, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
-                .ignoresSafeArea(edges: .top)
-        }
     }
 }
 
 // lays out at a phone size, then scales up so iPad looks the same, just bigger
 struct PhoneScaledRoot<Content: View>: View {
-    // iPhone 15-ish logical points — everything is designed to this canvas
+    // iPhone 15-ish logical points
     let designWidth: CGFloat = 393
     let designHeight: CGFloat = 852
-    // under this width, keep native layout (real phones)
     let phoneMaxWidth: CGFloat = 500
-    // matches a typical Dynamic Island / notch clearance
-    let phoneSafeTop: CGFloat = 59
     @ViewBuilder var content: () -> Content
     
     var body: some View {
         GeometryReader { geo in
             if geo.size.width <= phoneMaxWidth {
-                // real phone — don’t force a fixed canvas
+                // real phone
                 content()
                     .frame(width: geo.size.width, height: geo.size.height)
             } else {
-                // iPad / large screen — same UI scaled to fit
+                // iPad — same UI scaled up
                 let scale = min(geo.size.width / designWidth, geo.size.height / designHeight)
                 let scaledW = designWidth * scale
                 let scaledH = designHeight * scale
                 
                 ZStack {
                     MidnightNavyPalette.MidnightNavy.color
-                    
                     content()
-                        .environment(\.designSafeTop, phoneSafeTop)
                         .frame(width: designWidth, height: designHeight)
-                        // scale drawing, then expand hit-testing to match
                         .scaleEffect(scale)
                         .frame(width: scaledW, height: scaledH)
                 }
@@ -439,7 +303,6 @@ struct SettingsPage: View {
     @AppStorage("simplifyOn") var simplifyOn = false
     @AppStorage("contrastOn") var contrastOn = false
     @AppStorage("fullColorsOn") var fullColorsOn = true
-    @Environment(\.designSafeTop) var designSafeTop
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -472,24 +335,11 @@ struct SettingsPage: View {
             
             Spacer()
         }
-        .padding(.top, designSafeTop)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .modifier(PhoneOrDeviceTopClearance(designSafeTop: designSafeTop))
+        .safeAreaPadding(.top)
         .background {
             IceWhitePalette.PureSnow.color
                 .ignoresSafeArea()
-        }
-    }
-}
-
-// real phone uses device safe area; scaled canvas uses designSafeTop only
-struct PhoneOrDeviceTopClearance: ViewModifier {
-    var designSafeTop: CGFloat
-    func body(content: Content) -> some View {
-        if designSafeTop > 0 {
-            content
-        } else {
-            content.safeAreaPadding(.top)
         }
     }
 }
@@ -820,7 +670,7 @@ struct TasksPage: View {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 50)
                         .foregroundStyle(modeDarkSolid())
-                    Text("Remove")
+                    Text("Remove Completed tasks")
                         .font(.headline)
                         .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                 }
@@ -959,6 +809,7 @@ struct NewTaskPage: View {
                     tasksRaw = makeTasksRaw(tasks)
                     taskName = ""
                     taskText = ""
+                    difficulty = 5
                     tab = 0
                     dismiss()
                 }
@@ -973,12 +824,16 @@ struct NewTaskPage: View {
     }
 }
 
-// page when u click a task — always uses the shared task features
+// page when u click a task — Save / Delete same every time
 struct TaskDetailPage: View {
     var index: Int
     @AppStorage("tasks") var tasksRaw = startingTasks
+    @AppStorage("doneIndexes") var doneRaw = ""
+    @Environment(\.dismiss) var dismiss
     @State var name = ""
     @State var text = ""
+    // ask before deleting
+    @State var showDeleteConfirm = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -999,11 +854,83 @@ struct TaskDetailPage: View {
             
             Spacer()
             
-            // same bottom buttons every time
-            TaskScreenBottomActions()
+            // empty shell — will confirm done later
+            Button {
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                    Text("Confirm task is done")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+            
+            // empty shell — doesn’t break anything down yet
+            Button {
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(ContentView.Background1)
+                    Text("AI break it down")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
         }
         .background(IceWhitePalette.PureSnow.color)
-        .taskScreenFeatures(index: index, name: $name, text: $text)
+        .navigationTitle("Task")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button("Delete") {
+                    showDeleteConfirm = true
+                }
+                .foregroundStyle(.red)
+                
+                Button("Save") {
+                    // name required, description optional — same as new task
+                    let cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if cleaned == "" {
+                        return
+                    }
+                    var tasks = getTasks(tasksRaw)
+                    if index < tasks.count {
+                        tasks[index] = makePackedTask(cleaned, text)
+                        tasksRaw = makeTasksRaw(tasks)
+                    }
+                }
+            }
+        }
+        .alert("Delete this task?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                // remove this task + fix done indexes after it
+                var tasks = getTasks(tasksRaw)
+                if index < tasks.count {
+                    tasks.remove(at: index)
+                    tasksRaw = makeTasksRaw(tasks)
+                }
+                var newDones: [Int] = []
+                for d in getDoneIndexes(doneRaw) {
+                    if d < index {
+                        newDones.append(d)
+                    } else if d > index {
+                        newDones.append(d - 1)
+                    }
+                }
+                doneRaw = makeDoneRaw(newDones)
+                dismiss()
+            }
+        } message: {
+            Text("This can’t be undone.")
+        }
         .onAppear {
             let tasks = getTasks(tasksRaw)
             if index < tasks.count {
