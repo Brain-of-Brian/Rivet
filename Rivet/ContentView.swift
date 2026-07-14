@@ -135,11 +135,157 @@ func makeDoneRaw(_ list: [Int]) -> String {
 
 let startingTasks = "Finish design brief:::Review feedback and ship the brief|||Reply to team messages:::Catch up on Slack and email|||15-min walk outside:::Take a short walk to reset|||Review feedback notes:::Go through notes from design review|||Draft revised homepage:::Update the homepage layout|||Send to Jordan for review:::Send the latest draft over"
 
+// look toggles can all be on at once
+// fullColors = one solid palette color (no gradient mixes)
+// contrast = summersky on dark, midnight navy on white
+// simplify = strip extra UI / tighter headers
+
+// when UI is drawn on the phone canvas then scaled up (iPad),
+// we fake a phone notch inset so headers match iPhone
+private struct DesignSafeTopKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var designSafeTop: CGFloat {
+        get { self[DesignSafeTopKey.self] }
+        set { self[DesignSafeTopKey.self] = newValue }
+    }
+}
+
+func modeAccent(contrastOn: Bool, fullColorsOn: Bool) -> Color {
+    if contrastOn {
+        return SkyBluePalette.SummerSky.color
+    }
+    return OceanBluePalette.OceanBlue.color
+}
+
+func modeDarkSolid() -> Color {
+    MidnightNavyPalette.MidnightNavy.color
+}
+
+func modeLightBg() -> Color {
+    IceWhitePalette.PureSnow.color
+}
+
+func modeWashBg(contrastOn: Bool, fullColorsOn: Bool) -> Color {
+    if contrastOn {
+        return IceWhitePalette.PureSnow.color
+    }
+    if fullColorsOn {
+        return IceWhitePalette.GlacierFrost.color
+    }
+    return IceWhitePalette.PowderIce.color
+}
+
+func modeTextOnDark(contrastOn: Bool) -> Color {
+    if contrastOn {
+        return SkyBluePalette.SummerSky.color
+    }
+    return IceWhitePalette.PureSnow.color
+}
+
+func modeTextOnLight(contrastOn: Bool) -> Color {
+    MidnightNavyPalette.MidnightNavy.color
+}
+
+// solid when full colors or contrast; gradient when both off
+@ViewBuilder
+func modeDarkHeaderShape(cornerRadius: CGFloat, contrastOn: Bool, fullColorsOn: Bool) -> some View {
+    if fullColorsOn || contrastOn {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .foregroundStyle(modeDarkSolid())
+    } else {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .foregroundStyle(ContentView.Background3)
+    }
+}
+
+@ViewBuilder
+func modeAccentShape(height: CGFloat, cornerRadius: CGFloat, contrastOn: Bool, fullColorsOn: Bool) -> some View {
+    if contrastOn || fullColorsOn {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .frame(height: height)
+            .foregroundStyle(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
+    } else {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .frame(height: height)
+            .foregroundStyle(ContentView.Background1)
+    }
+}
+
+// title stays clear of the camera; fill still goes edge-to-edge
+struct TopSafeHeader<Content: View>: View {
+    var cornerRadius: CGFloat
+    var contrastOn: Bool
+    var fullColorsOn: Bool
+    @Environment(\.designSafeTop) var designSafeTop
+    @ViewBuilder var content: () -> Content
+    
+    var body: some View {
+        Group {
+            if designSafeTop > 0 {
+                // scaled phone canvas — use the fake notch inset
+                content()
+                    .padding(.top, designSafeTop)
+            } else {
+                // real phone — use the device safe area
+                content()
+                    .safeAreaPadding(.top)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .background {
+            modeDarkHeaderShape(cornerRadius: cornerRadius, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
+                .ignoresSafeArea(edges: .top)
+        }
+    }
+}
+
+// lays out at a phone size, then scales up so iPad looks the same, just bigger
+struct PhoneScaledRoot<Content: View>: View {
+    // iPhone 15-ish logical points — everything is designed to this canvas
+    let designWidth: CGFloat = 393
+    let designHeight: CGFloat = 852
+    // under this width, keep native layout (real phones)
+    let phoneMaxWidth: CGFloat = 500
+    // matches a typical Dynamic Island / notch clearance
+    let phoneSafeTop: CGFloat = 59
+    @ViewBuilder var content: () -> Content
+    
+    var body: some View {
+        GeometryReader { geo in
+            if geo.size.width <= phoneMaxWidth {
+                // real phone — don’t force a fixed canvas
+                content()
+                    .frame(width: geo.size.width, height: geo.size.height)
+            } else {
+                // iPad / large screen — same UI scaled to fit
+                let scale = min(geo.size.width / designWidth, geo.size.height / designHeight)
+                let scaledW = designWidth * scale
+                let scaledH = designHeight * scale
+                
+                ZStack {
+                    MidnightNavyPalette.MidnightNavy.color
+                    
+                    content()
+                        .environment(\.designSafeTop, phoneSafeTop)
+                        .frame(width: designWidth, height: designHeight)
+                        // scale drawing, then expand hit-testing to match
+                        .scaleEffect(scale)
+                        .frame(width: scaledW, height: scaledH)
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
 struct ContentView: View {
     static let Background1 = LinearGradient(colors: [OceanBluePalette.DeepNavy.color,OceanBluePalette.OceanBlue.color, OceanBluePalette.ScubaCyan.color, OceanBluePalette.Seafoam.color], startPoint: .topLeading, endPoint: .bottomTrailing)
     static let Background2 = LinearGradient(colors: [IceWhitePalette.PureSnow.color,IceWhitePalette.GlacierFrost.color, IceWhitePalette.PowderIce.color, IceWhitePalette.ArcticBreeze.color], startPoint: .topTrailing, endPoint: .bottomLeading)
     static let Background3 = LinearGradient(colors: [MidnightNavyPalette.AbyssalBlack.color,MidnightNavyPalette.MidnightNavy.color, MidnightNavyPalette.DeepMariner.color, MidnightNavyPalette.GlowingCobalt.color], startPoint: .topLeading, endPoint: .bottomTrailing)
-    static let Background4 = LinearGradient(colors: [SkyBluePalette.SkyGlow.color,SkyBluePalette.SummerSky.color, SkyBluePalette.ClearWater.color, SkyBluePalette.CoastalTeal.color], startPoint: .topTrailing, endPoint: .bottomLeading)
     // which tab is open
     @AppStorage("tab") var tab = 0
     var body: some View {
@@ -172,7 +318,7 @@ struct ContentView: View {
             }
             .tag(2)
         }
-        .background(ContentView.Background3)
+        .background(MidnightNavyPalette.MidnightNavy.color)
         
     }
 }
@@ -181,153 +327,145 @@ struct ContentView: View {
     ContentView()
 }
 
-// settings tab for now
+// settings tab — each one is its own on/off switch (can combine)
 struct SettingsPage: View {
-    // which look mode they picked
-    @AppStorage("lookMode") var lookMode = "full colors"
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
+    @Environment(\.designSafeTop) var designSafeTop
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Settings")
                 .font(.largeTitle)
                 .bold()
                 .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                .padding(.top, 40)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity)
             
             Spacer()
             
-            // just the word simplify
-            Button {
-                lookMode = "simplify"
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 25)
-                        .frame(height: 55)
-                        .foregroundStyle(lookMode == "simplify" ? MidnightNavyPalette.MidnightNavy.color : IceWhitePalette.PureSnow.color)
-                    Text("simplify")
-                        .font(.headline)
-                        .foregroundStyle(lookMode == "simplify" ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
-                }
-            }
-            .padding(.horizontal, 25)
+            Toggle("Simplify", isOn: $simplifyOn)
+                .font(.headline)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                .tint(OceanBluePalette.OceanBlue.color)
+                .padding(.horizontal, 28)
             
-            Button {
-                lookMode = "increased contrast"
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 25)
-                        .frame(height: 55)
-                        .foregroundStyle(lookMode == "increased contrast" ? MidnightNavyPalette.MidnightNavy.color : IceWhitePalette.PureSnow.color)
-                    Text("increased contrast")
-                        .font(.headline)
-                        .foregroundStyle(lookMode == "increased contrast" ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
-                }
-            }
-            .padding(.horizontal, 25)
+            Toggle("Increased contrast", isOn: $contrastOn)
+                .font(.headline)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                .tint(OceanBluePalette.OceanBlue.color)
+                .padding(.horizontal, 28)
             
-            Button {
-                lookMode = "full colors"
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 25)
-                        .frame(height: 55)
-                        .foregroundStyle(lookMode == "full colors" ? MidnightNavyPalette.MidnightNavy.color : IceWhitePalette.PureSnow.color)
-                    Text("full colors")
-                        .font(.headline)
-                        .foregroundStyle(lookMode == "full colors" ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
-                }
-            }
-            .padding(.horizontal, 25)
+            Toggle("Full colors", isOn: $fullColorsOn)
+                .font(.headline)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                .tint(OceanBluePalette.OceanBlue.color)
+                .padding(.horizontal, 28)
             
             Spacer()
         }
+        .padding(.top, designSafeTop)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ContentView.Background2)
+        .modifier(PhoneOrDeviceTopClearance(designSafeTop: designSafeTop))
+        .background {
+            IceWhitePalette.PureSnow.color
+                .ignoresSafeArea()
+        }
+    }
+}
+
+// real phone uses device safe area; scaled canvas uses designSafeTop only
+struct PhoneOrDeviceTopClearance: ViewModifier {
+    var designSafeTop: CGFloat
+    func body(content: Content) -> some View {
+        if designSafeTop > 0 {
+            content
+        } else {
+            content.safeAreaPadding(.top)
+        }
     }
 }
 
 // little app box
 struct AppUsageCard: View {
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
+    
     var body: some View {
         ZStack{
             RoundedRectangle(cornerRadius: 25)
                 .frame(width: 80, height: 100)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
+                .foregroundStyle(modeLightBg())
             VStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 10)
                     .frame(width: 30, height: 30)
-                    .foregroundStyle(ContentView.Background3)
+                    .foregroundStyle(modeDarkSolid())
                 Text("Instagram")
                     .font(.caption2)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                    .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
                 // screentime number later
                 Text("placeholder")
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(contrastOn ? MidnightNavyPalette.MidnightNavy.color : Color.red)
             }
         }
     }
 }
 
-// one task row u can check and also tap
+// one task row — tap anywhere (circle or text) opens detail once
 struct TaskRow: View {
     var index: Int
     @AppStorage("tasks") var tasksRaw = startingTasks
     @AppStorage("doneIndexes") var doneRaw = ""
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
         let dones = getDoneIndexes(doneRaw)
         let isChecked = dones.contains(index)
         
-        HStack(alignment: .top) {
-            // check circle
-            Button {
-                var newDones = dones
-                if isChecked {
-                    newDones.removeAll { $0 == index }
-                } else {
-                    newDones.append(index)
-                }
-                doneRaw = makeDoneRaw(newDones)
-            } label: {
+        // only one link so it doesn’t push the page twice
+        NavigationLink(destination: TaskDetailPage(index: index)) {
+            HStack(alignment: .top) {
                 ZStack {
                     Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
+                        .stroke(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn), lineWidth: contrastOn ? 3 : 2)
                         .frame(width: 18, height: 18)
                     if isChecked {
                         Text("X")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                            .foregroundStyle(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                     }
                 }
-            }
-            .padding(.top, 2)
-            
-            // tap text goes to detail — name + description under it
-            if index < tasks.count {
-                NavigationLink(destination: TaskDetailPage(index: index)) {
+                .padding(.top, 2)
+                
+                if index < tasks.count {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(getTaskName(tasks[index]))
                             .font(.headline)
-                            .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
+                            .foregroundStyle(isChecked ? .gray : modeTextOnLight(contrastOn: contrastOn))
                             .lineLimit(1)
                         // full description under the name
                         Text(getTaskDescription(tasks[index]))
                             .font(.caption)
-                            .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.DeepMariner.color)
+                            .foregroundStyle(isChecked ? .gray : modeTextOnLight(contrastOn: contrastOn))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                
+                Spacer()
             }
-            
-            Spacer()
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 25)
+                    .foregroundStyle(modeLightBg())
+            )
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 25)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-        )
+        .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.vertical, 4)
     }
@@ -335,87 +473,70 @@ struct TaskRow: View {
 
 struct Dashboard: View {
     @AppStorage("tasks") var tasksRaw = startingTasks
-    @AppStorage("lookMode") var lookMode = "full colors"
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
         VStack(spacing: 0) {
-            // top dark header
-            ZStack(alignment: .top) {
-                if isContrast {
-                    RoundedRectangle(cornerRadius: 60)
-                        .foregroundStyle(MidnightNavyPalette.AbyssalBlack.color)
-                } else {
-                    RoundedRectangle(cornerRadius: 60)
-                        .foregroundStyle(ContentView.Background3)
-                }
+            // top dark header — hug content so simplify isn’t a giant empty block
+            TopSafeHeader(cornerRadius: simplifyOn ? 40 : 60, contrastOn: contrastOn, fullColorsOn: fullColorsOn) {
                 VStack {
-                    if isSimplify {
-                        // only big Dashboard + start focus
+                    if simplifyOn {
+                        // only Dashboard + start focus, tighter
                         Text("Dashboard")
-                            .font(.system(size: 56, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            .padding(.top, 60)
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
+                            .padding(.top, 12)
                         
                         NavigationLink(destination: FocusSetupPage()) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 30)
-                                    .frame(height: 55)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : OceanBluePalette.OceanBlue.color)
+                                modeAccentShape(height: 48, cornerRadius: 30, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
                                 Text("Start Focus session")
                                     .font(.headline)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
-                        .padding(.top, 30)
-                        .padding(.bottom, 25)
+                        .padding(.top, 14)
+                        .padding(.bottom, 18)
                     } else {
                         HStack{
                             Text("Dashboard")
                                 .font(.largeTitle)
                                 .bold()
-                                .foregroundStyle(IceWhitePalette.PureSnow.color)
+                                .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             Spacer()
                             ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .frame(width: 100, height: 36)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.DeepMariner.color)
+                                modeAccentShape(height: 36, cornerRadius: 20, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
+                                    .frame(width: 100)
                                 Text("placeholder")
                                     .font(.caption)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
-                        .padding(.top, 50)
+                        .padding(.top, 12)
                         
                         // screentime
                         Text("placeholder")
                             .font(.system(size: 56, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             .padding(.top, 20)
                         
                         Text("SCREEN TIME TODAY")
                             .font(.caption)
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : SkyBluePalette.SummerSky.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                         
                         // goes to focus setup
                         NavigationLink(destination: FocusSetupPage()) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 30)
-                                    .frame(height: 55)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : OceanBluePalette.OceanBlue.color)
+                                modeAccentShape(height: 55, cornerRadius: 30, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
                                 Text("Start Focus session")
                                     .font(.headline)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
@@ -424,16 +545,14 @@ struct Dashboard: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .ignoresSafeArea(edges: .top)
             
             
             // app cards — hidden in simplify so tasks sit higher
-            if !isSimplify {
+            if !simplifyOn {
                 ZStack{
                     RoundedRectangle(cornerRadius: 30)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : ContentView.Background2)
+                        .foregroundStyle(modeWashBg(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                     HStack(spacing: 12){
                         AppUsageCard()
                         AppUsageCard()
@@ -449,16 +568,16 @@ struct Dashboard: View {
             // tasks — only this list scrolls
             ZStack {
                 RoundedRectangle(cornerRadius: 0)
-                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : IceWhitePalette.GlacierFrost.color)
+                    .foregroundStyle(modeWashBg(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                 
                 VStack{
-                    if !isSimplify {
+                    if !simplifyOn {
                         HStack {
                             
                             Text("TODAY'S TASKS")
                                 .font(.title3)
                                 .bold()
-                                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                                .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
                                 .padding(.leading, 20)
                             
                             Spacer()
@@ -466,7 +585,7 @@ struct Dashboard: View {
                                 Text("+ Add task")
                                     .font(.subheadline)
                                     .bold()
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color)
+                                    .foregroundStyle(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                             }
                             .padding(.horizontal, 20)
                         }
@@ -482,7 +601,7 @@ struct Dashboard: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
-                    .padding(.top, isSimplify ? 8 : 0)
+                    .padding(.top, simplifyOn ? 4 : 0)
                     
                 }
             }
@@ -490,7 +609,7 @@ struct Dashboard: View {
             
             
         }
-        .background(isContrast ? IceWhitePalette.PureSnow.color : Color.clear)
+        .background(modeLightBg())
     }
 }
 #Preview {
@@ -500,84 +619,67 @@ struct Dashboard: View {
 struct TasksPage: View {
     @AppStorage("tasks") var tasksRaw = startingTasks
     @AppStorage("doneIndexes") var doneRaw = ""
-    @AppStorage("lookMode") var lookMode = "full colors"
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                if isContrast {
-                    RoundedRectangle(cornerRadius: 60)
-                        .foregroundStyle(MidnightNavyPalette.AbyssalBlack.color)
-                } else {
-                    RoundedRectangle(cornerRadius: 60)
-                        .foregroundStyle(ContentView.Background3)
-                }
+            TopSafeHeader(cornerRadius: simplifyOn ? 40 : 60, contrastOn: contrastOn, fullColorsOn: fullColorsOn) {
                 VStack {
-                    if isSimplify {
-                        // just big Tasks + add task
+                    if simplifyOn {
+                        // just Tasks + add task, tighter
                         Text("Tasks")
-                            .font(.system(size: 56, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            .padding(.top, 60)
+                            .font(.system(size: 36, weight: .bold))
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
+                            .padding(.top, 12)
                         
                         NavigationLink(destination: NewTaskPage()) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 30)
-                                    .frame(height: 55)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : ContentView.Background1)
+                                modeAccentShape(height: 48, cornerRadius: 30, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
                                 Text("Add Task")
                                     .font(.headline)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
-                        .padding(.top, 30)
-                        .padding(.bottom, 25)
+                        .padding(.top, 14)
+                        .padding(.bottom, 18)
                     } else {
                         HStack{
                             Text("Tasks")
                                 .font(.largeTitle)
                                 .bold()
-                                .foregroundStyle(IceWhitePalette.PureSnow.color)
+                                .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             Spacer()
                             ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .frame(width: 100, height: 36)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.DeepMariner.color)
+                                modeAccentShape(height: 36, cornerRadius: 20, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
+                                    .frame(width: 100)
                                 Text("placeholder")
                                     .font(.caption)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
-                        .padding(.top, 50)
+                        .padding(.top, 12)
                         
                         Text("placeholder")
                             .font(.system(size: 72, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             .padding(.top, 20)
                         
                         Text("TASKS REMAINING")
                             .font(.caption)
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : SkyBluePalette.SummerSky.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                         
                         NavigationLink(destination: NewTaskPage()) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 30)
-                                    .frame(height: 55)
-                                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : ContentView.Background1)
+                                modeAccentShape(height: 55, cornerRadius: 30, contrastOn: contrastOn, fullColorsOn: fullColorsOn)
                                 Text("Add Task")
                                     .font(.headline)
-                                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                             }
                         }
                         .padding(.horizontal, 25)
@@ -586,8 +688,6 @@ struct TasksPage: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity)
-            .ignoresSafeArea(edges: .top)
             
             // remove button under the blue header — clears tasks with an X
             Button {
@@ -604,10 +704,10 @@ struct TasksPage: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 50)
-                        .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : MidnightNavyPalette.MidnightNavy.color)
+                        .foregroundStyle(modeDarkSolid())
                     Text("Remove")
                         .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                        .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                 }
             }
             .padding(.horizontal, 25)
@@ -616,7 +716,7 @@ struct TasksPage: View {
             
             ZStack {
                 RoundedRectangle(cornerRadius: 0)
-                    .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : IceWhitePalette.GlacierFrost.color)
+                    .foregroundStyle(modeWashBg(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                 
                 // only the tasks scroll
                 List {
@@ -631,7 +731,7 @@ struct TasksPage: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .background(isContrast ? IceWhitePalette.PureSnow.color : Color.clear)
+        .background(modeLightBg())
     }
 }
 
@@ -726,19 +826,6 @@ struct NewTaskPage: View {
             .padding(.horizontal, 20)
             
             Spacer()
-            
-            NavigationLink(destination: BreakdownPage()) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(ContentView.Background1)
-                    Text("AI: Break it down")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 40)
         }
         .background(IceWhitePalette.PureSnow.color)
         .navigationTitle("New Task")
@@ -747,14 +834,16 @@ struct NewTaskPage: View {
             // save then go right to dashboard
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Save") {
-                    if taskName != "" || taskText != "" {
-                        var tasks = getTasks(tasksRaw)
-                        let name = taskName != "" ? taskName : "New Task"
-                        tasks.append(makePackedTask(name, taskText))
-                        tasksRaw = makeTasksRaw(tasks)
-                        taskName = ""
-                        taskText = ""
+                    // name required, description optional
+                    let name = taskName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if name == "" {
+                        return
                     }
+                    var tasks = getTasks(tasksRaw)
+                    tasks.append(makePackedTask(name, taskText))
+                    tasksRaw = makeTasksRaw(tasks)
+                    taskName = ""
+                    taskText = ""
                     tab = 0
                     dismiss()
                 }
@@ -794,6 +883,36 @@ struct TaskDetailPage: View {
                 .padding(.horizontal, 20)
             
             Spacer()
+            
+            // empty shell — will confirm done later, always shown
+            Button {
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                    Text("Confirm task is done")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+            
+            // empty shell for now — doesn’t break anything down yet
+            Button {
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(ContentView.Background1)
+                    Text("AI break it down")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 40)
         }
         .background(IceWhitePalette.PureSnow.color)
         .navigationTitle("Task")
@@ -823,192 +942,28 @@ struct TaskDetailPage: View {
     TaskDetailPage(index: 0)
 }
 
-struct BreakdownPage: View {
-    @AppStorage("lookMode") var lookMode = "full colors"
-    
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                if isContrast {
-                    RoundedRectangle(cornerRadius: 40)
-                        .foregroundStyle(MidnightNavyPalette.AbyssalBlack.color)
-                } else if isSimplify {
-                    RoundedRectangle(cornerRadius: 40)
-                        .foregroundStyle(ContentView.Background3)
-                } else {
-                    RoundedRectangle(cornerRadius: 40)
-                        .foregroundStyle(ContentView.Background4)
-                }
-                VStack(alignment: .leading, spacing: 12) {
-                    if isSimplify {
-                        Text("Breakdown")
-                            .font(.system(size: 40, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            .padding(.top, 50)
-                        
-                        Text("Super hard task")
-                            .font(.title2)
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                    } else {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 20)
-                                .frame(width: 130, height: 32)
-                                .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : OceanBluePalette.OceanBlue.color)
-                            Text("PLAN READY")
-                                .font(.caption)
-                                .bold()
-                                .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : IceWhitePalette.PureSnow.color)
-                        }
-                        .padding(.top, 50)
-                        
-                        Text("AI broke this into focused steps")
-                            .font(.subheadline)
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.DeepMariner.color)
-                        
-                        Text("Super hard task")
-                            .font(.largeTitle)
-                            .bold()
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
-                        
-                        HStack(spacing: 12) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 18)
-                                    .frame(height: 50)
-                                    .foregroundStyle(IceWhitePalette.PureSnow.color)
-                                Text("breakdown: placeholder")
-                                    .font(.caption)
-                                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                            }
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 18)
-                                    .frame(height: 50)
-                                    .foregroundStyle(IceWhitePalette.PureSnow.color)
-                                Text("estimated: placeholder")
-                                    .font(.caption)
-                                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 25)
-                .padding(.bottom, isSimplify ? 25 : 0)
-            }
-            .frame(maxWidth: .infinity)
-            .ignoresSafeArea(edges: .top)
-            
-            ScrollView {
-                VStack(spacing: 12) {
-                    BreakdownStepCard(text: "Define the goal clearly so the next steps are obvious")
-                    BreakdownStepCard(text: "Gather the materials and notes you already have")
-                    BreakdownStepCard(text: "Break the hard parts into smaller actions")
-                    BreakdownStepCard(text: "Do the first focused push without switching apps")
-                    BreakdownStepCard(text: "Review what got done and lock the next move")
-                }
-                .padding(.top, 20)
-            }
-            
-            NavigationLink(destination: TasksPage()) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : ContentView.Background1)
-                    Text("Add Task")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, isSimplify ? 30 : 10)
-            
-            if !isSimplify {
-                NavigationLink(destination: NewTaskPage()) {
-                    Text("Back")
-                        .font(.body)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                }
-                .padding(.top, 12)
-                .padding(.bottom, 30)
-            }
-        }
-        .background(isContrast ? IceWhitePalette.PureSnow.color : ContentView.Background2)
-    }
-}
-
-#Preview {
-    BreakdownPage()
-}
-
-struct BreakdownStepCard: View {
-    var text: String
-    @AppStorage("lookMode") var lookMode = "full colors"
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
-    
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                if lookMode != "simplify" {
-                    Text("placeholder")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
-                }
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
 // bottom for all apps mode
 struct FocusSetupAllAppsBottom: View {
     @AppStorage("tasks") var tasksRaw = startingTasks
-    @AppStorage("lookMode") var lookMode = "full colors"
-    
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
         VStack(alignment: .leading, spacing: 16) {
-            if !isSimplify {
+            if !simplifyOn {
                 ZStack {
                     RoundedRectangle(cornerRadius: 25)
                         .frame(height: 90)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                        .foregroundStyle(modeLightBg())
                     VStack(spacing: 6) {
                         Text("All apps blocked")
                             .font(.headline)
-                            .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
                         Text("Distracting apps stay locked until you're done")
                             .font(.caption)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.6))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -1016,11 +971,11 @@ struct FocusSetupAllAppsBottom: View {
                 HStack {
                     Text("UNTIL DONE")
                         .font(.caption)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.6))
                     Spacer()
                     Text("placeholder")
                         .font(.caption)
-                        .foregroundStyle(.gray)
+                        .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.6))
                 }
                 .padding(.horizontal, 20)
             }
@@ -1034,23 +989,21 @@ struct FocusSetupAllAppsBottom: View {
 
 // bottom for select apps mode
 struct FocusSetupSelectAppsBottom: View {
-    @AppStorage("lookMode") var lookMode = "full colors"
-    
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if !isSimplify {
+            if !simplifyOn {
                 ZStack {
                     RoundedRectangle(cornerRadius: 20)
                         .frame(height: 44)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                        .foregroundStyle(modeLightBg())
                     HStack {
                         Text("Search apps...")
                             .font(.body)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.5))
                         Spacer()
                     }
                     .padding(.horizontal, 16)
@@ -1064,10 +1017,10 @@ struct FocusSetupSelectAppsBottom: View {
             AppSelectRow(name: "Discord")
             AppSelectRow(name: "FaceTime")
             
-            if !isSimplify {
+            if !simplifyOn {
                 Text("BREAKS")
                     .font(.caption)
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.6))
                     .padding(.horizontal, 20)
                     .padding(.top, 8)
                 
@@ -1075,26 +1028,26 @@ struct FocusSetupSelectAppsBottom: View {
                     ZStack {
                         RoundedRectangle(cornerRadius: 16)
                             .frame(height: 40)
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(modeLightBg())
                         Text("placeholder")
                             .font(.subheadline)
-                            .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
                     }
                     ZStack {
                         RoundedRectangle(cornerRadius: 16)
                             .frame(height: 40)
-                            .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                            .foregroundStyle(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                         Text("placeholder")
                             .font(.subheadline)
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
                     }
                     ZStack {
                         RoundedRectangle(cornerRadius: 16)
                             .frame(height: 40)
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(modeLightBg())
                         Text("placeholder")
                             .font(.subheadline)
-                            .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -1105,23 +1058,21 @@ struct FocusSetupSelectAppsBottom: View {
 
 struct AppSelectRow: View {
     var name: String
-    @AppStorage("lookMode") var lookMode = "full colors"
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
     var body: some View {
         HStack {
             RoundedRectangle(cornerRadius: 8)
                 .frame(width: 36, height: 36)
-                .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : ContentView.Background3)
+                .foregroundStyle(modeDarkSolid())
             Text(name)
                 .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                .foregroundStyle(modeTextOnLight(contrastOn: contrastOn))
             Spacer()
             Circle()
-                .stroke(isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color, lineWidth: isContrast ? 3 : 2)
+                .stroke(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn), lineWidth: contrastOn ? 3 : 2)
                 .frame(width: 22, height: 22)
         }
         .padding(.horizontal, 20)
@@ -1132,73 +1083,60 @@ struct AppSelectRow: View {
 struct FocusSetupPage: View {
     // switches the bottom half
     @State var showSelectApps = false
-    @AppStorage("lookMode") var lookMode = "full colors"
+    @AppStorage("simplifyOn") var simplifyOn = false
+    @AppStorage("contrastOn") var contrastOn = false
+    @AppStorage("fullColorsOn") var fullColorsOn = true
     
-    var isSimplify: Bool {
-        lookMode == "simplify"
-    }
-    
-    var isContrast: Bool {
-        lookMode == "increased contrast"
-    }
     
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                if isContrast {
-                    RoundedRectangle(cornerRadius: 40)
-                        .foregroundStyle(MidnightNavyPalette.AbyssalBlack.color)
-                } else {
-                    RoundedRectangle(cornerRadius: 40)
-                        .foregroundStyle(ContentView.Background3)
-                }
+            TopSafeHeader(cornerRadius: simplifyOn ? 32 : 40, contrastOn: contrastOn, fullColorsOn: fullColorsOn) {
                 VStack(alignment: .leading, spacing: 8) {
-                    if isSimplify {
+                    if simplifyOn {
                         Text("Focus Setup")
-                            .font(.system(size: 40, weight: .bold))
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            .padding(.top, 50)
+                            .font(.system(size: 32, weight: .bold))
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
+                            .padding(.top, 12)
                         
                         Text("Finish design brief")
-                            .font(.title2)
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            .padding(.bottom, 20)
+                            .font(.title3)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
+                            .padding(.bottom, 14)
                     } else {
                         HStack {
                             Text("Focus Setup")
                                 .font(.title3)
                                 .bold()
-                                .foregroundStyle(IceWhitePalette.PureSnow.color)
+                                .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             Spacer()
                         }
-                        .padding(.top, 50)
+                        .padding(.top, 12)
                         
                         Text(showSelectApps ? "FOCUSING ON" : "STARTING WITH")
                             .font(.caption)
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : SkyBluePalette.SummerSky.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             .padding(.top, 20)
                         
                         Text("Finish design brief")
                             .font(.title)
                             .bold()
-                            .foregroundStyle(IceWhitePalette.PureSnow.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                         
                         Text("placeholder")
                             .font(.caption)
-                            .foregroundStyle(isContrast ? IceWhitePalette.PureSnow.color : SkyBluePalette.SkyGlow.color)
+                            .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                     }
                 }
                 .padding(.horizontal, 25)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity)
-            .ignoresSafeArea(edges: .top)
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if !isSimplify {
+                    if !simplifyOn {
                         Text("WHAT TO BLOCK")
                             .font(.caption)
-                            .foregroundStyle(.gray)
+                            .foregroundStyle(modeTextOnLight(contrastOn: contrastOn).opacity(0.6))
                             .padding(.horizontal, 20)
                             .padding(.top, 20)
                     }
@@ -1211,10 +1149,10 @@ struct FocusSetupPage: View {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 20)
                                     .frame(height: 44)
-                                    .foregroundStyle(showSelectApps ? IceWhitePalette.PureSnow.color : (isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color))
+                                    .foregroundStyle(showSelectApps ? modeLightBg() : modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                                 Text("All apps")
                                     .font(.subheadline)
-                                    .foregroundStyle(showSelectApps ? MidnightNavyPalette.MidnightNavy.color : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(showSelectApps ? modeTextOnLight(contrastOn: contrastOn) : (contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn)))
                             }
                         }
                         
@@ -1224,15 +1162,15 @@ struct FocusSetupPage: View {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 20)
                                     .frame(height: 44)
-                                    .foregroundStyle(showSelectApps ? (isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color) : IceWhitePalette.PureSnow.color)
+                                    .foregroundStyle(showSelectApps ? modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn) : modeLightBg())
                                 Text("Select apps")
                                     .font(.subheadline)
-                                    .foregroundStyle(showSelectApps ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
+                                    .foregroundStyle(showSelectApps ? (contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn)) : modeTextOnLight(contrastOn: contrastOn))
                             }
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, isSimplify ? 16 : 0)
+                    .padding(.top, simplifyOn ? 16 : 0)
                     
                     if showSelectApps {
                         FocusSetupSelectAppsBottom()
@@ -1245,15 +1183,15 @@ struct FocusSetupPage: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 30)
                     .frame(height: 55)
-                    .foregroundStyle(isContrast ? MidnightNavyPalette.AbyssalBlack.color : OceanBluePalette.OceanBlue.color)
+                    .foregroundStyle(modeAccent(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
                 Text("Start Focus Session")
                     .font(.headline)
-                    .foregroundStyle(IceWhitePalette.PureSnow.color)
+                    .foregroundStyle(contrastOn ? modeTextOnLight(contrastOn: contrastOn) : modeTextOnDark(contrastOn: contrastOn))
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
         }
-        .background(isContrast ? IceWhitePalette.PureSnow.color : IceWhitePalette.GlacierFrost.color)
+        .background(modeWashBg(contrastOn: contrastOn, fullColorsOn: fullColorsOn))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -1261,3 +1199,4 @@ struct FocusSetupPage: View {
 #Preview {
     FocusSetupPage()
 }
+
