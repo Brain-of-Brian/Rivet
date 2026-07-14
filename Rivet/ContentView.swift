@@ -76,14 +76,53 @@ enum OceanBluePalette: String, CaseIterable {
         }
     }
 }
+
+// tasks saved on the phone w appstorage
+// joined w ||| so its just one string
+func getTasks(_ raw: String) -> [String] {
+    if raw == "" {
+        return []
+    }
+    return raw.components(separatedBy: "|||")
+}
+
+func makeTasksRaw(_ list: [String]) -> String {
+    list.joined(separator: "|||")
+}
+
+let startingTasks = "Finish design brief|||Reply to team messages|||15-min walk outside|||Review feedback notes|||Draft revised homepage|||Send to Jordan for review"
+
 struct ContentView: View {
     static let Background1 = LinearGradient(colors: [OceanBluePalette.DeepNavy.color,OceanBluePalette.OceanBlue.color, OceanBluePalette.ScubaCyan.color, OceanBluePalette.Seafoam.color], startPoint: .topLeading, endPoint: .bottomTrailing)
     static let Background2 = LinearGradient(colors: [IceWhitePalette.PureSnow.color,IceWhitePalette.GlacierFrost.color, IceWhitePalette.PowderIce.color, IceWhitePalette.ArcticBreeze.color], startPoint: .topTrailing, endPoint: .bottomLeading)
     static let Background3 = LinearGradient(colors: [MidnightNavyPalette.AbyssalBlack.color,MidnightNavyPalette.MidnightNavy.color, MidnightNavyPalette.DeepMariner.color, MidnightNavyPalette.GlowingCobalt.color], startPoint: .topLeading, endPoint: .bottomTrailing)
     static let Background4 = LinearGradient(colors: [SkyBluePalette.SkyGlow.color,SkyBluePalette.SummerSky.color, SkyBluePalette.ClearWater.color, SkyBluePalette.CoastalTeal.color], startPoint: .topTrailing, endPoint: .bottomLeading)
     var body: some View {
-        NavigationStack {
-            Dashboard()
+        // bottom 3 things are real tabs now
+        TabView {
+            NavigationStack {
+                Dashboard()
+            }
+            .tabItem {
+                Text("Dashboard")
+                Text("icon")
+            }
+            
+            NavigationStack {
+                TasksPage()
+            }
+            .tabItem {
+                Text("Tasks")
+                Text("icon")
+            }
+            
+            NavigationStack {
+                SettingsPage()
+            }
+            .tabItem {
+                Text("Settings")
+                Text("icon")
+            }
         }
         .background(ContentView.Background3)
         
@@ -94,45 +133,20 @@ struct ContentView: View {
     ContentView()
 }
 
-// bottom bar w the 3 tabs
-struct TabBarPlaceholder: View {
+// settings tab for now
+struct SettingsPage: View {
     var body: some View {
-        HStack {
-            NavigationLink(destination: Dashboard().toolbar(.hidden, for: .navigationBar)) {
-                VStack {
-                    Text("Dashboard")
-                        .font(.caption)
-                    Text("icon")
-                        .font(.caption2)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            
-            NavigationLink(destination: TasksPage().toolbar(.hidden, for: .navigationBar)) {
-                VStack {
-                    Text("Tasks")
-                        .font(.caption)
-                    Text("icon")
-                        .font(.caption2)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            
-            VStack {
-                Text("Settings")
-                    .font(.caption)
-                Text("icon")
-                    .font(.caption2)
-            }
-            .frame(maxWidth: .infinity)
+        ZStack {
+            ContentView.Background2
+            Text("Settings")
+                .font(.largeTitle)
+                .bold()
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
         }
-        .padding()
-        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-        .background(IceWhitePalette.PureSnow.color)
     }
 }
 
-// little app usage box on dashboard
+// little app box
 struct AppUsageCard: View {
     var body: some View {
         ZStack{
@@ -155,43 +169,19 @@ struct AppUsageCard: View {
     }
 }
 
-// one subtask u can check off, puts an x when done
-struct SubTaskRow: View {
+// one task row u can check and also tap
+struct TaskRow: View {
+    var index: Int
+    @AppStorage("tasks") var tasksRaw = startingTasks
     @State var isChecked = false
+    
     var body: some View {
-        Button {
-            isChecked.toggle()
-        } label: {
-            HStack {
-                ZStack {
-                    Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    // x only shows if u finished it
-                    if isChecked {
-                        Text("X")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    }
-                }
-                Text("Review feedback notes")
-                    .font(.subheadline)
-                    .strikethrough(isChecked)
-                    .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct SubTaskRow2: View {
-    @State var isChecked = false
-    var body: some View {
-        Button {
-            isChecked.toggle()
-        } label: {
-            HStack {
+        let tasks = getTasks(tasksRaw)
+        HStack {
+            // check circle
+            Button {
+                isChecked.toggle()
+            } label: {
                 ZStack {
                     Circle()
                         .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
@@ -202,394 +192,35 @@ struct SubTaskRow2: View {
                             .foregroundStyle(OceanBluePalette.OceanBlue.color)
                     }
                 }
-                Text("Draft revised homepage")
-                    .font(.subheadline)
-                    .strikethrough(isChecked)
-                    .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
             }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-struct SubTaskRow3: View {
-    @State var isChecked = false
-    var body: some View {
-        Button {
-            isChecked.toggle()
-        } label: {
-            HStack {
-                ZStack {
-                    Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    if isChecked {
-                        Text("X")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    }
+            
+            // tap text goes to detail
+            if index < tasks.count {
+                NavigationLink(destination: TaskDetailPage(index: index)) {
+                    Text(tasks[index])
+                        .font(.subheadline)
+                        .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
                 }
-                Text("Send to Jordan for review")
-                    .font(.subheadline)
-                    .strikethrough(isChecked)
-                    .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
             }
+            
+            Spacer()
         }
-        .buttonStyle(.plain)
-    }
-}
-
-// task card opened w the little steps under it
-struct TaskCardExpanded: View {
-    var body: some View {
-        ZStack {
+        .padding()
+        .background(
             RoundedRectangle(cornerRadius: 25)
                 .foregroundStyle(IceWhitePalette.PureSnow.color)
-            VStack(alignment: .leading, spacing: 10) {
-                // same layout as the other task cards
-                HStack {
-                    Circle()
-                        .frame(width: 10, height: 10)
-                        .foregroundStyle(OceanBluePalette.ScubaCyan.color)
-                    VStack(alignment: .leading) {
-                        Text("Finish design brief")
-                            .font(.headline)
-                            .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                        Text("placeholder")
-                            .font(.caption)
-                            .foregroundStyle(.gray)
-                    }
-                    Spacer()
-                    Text(">")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
-                }
-                SubTaskRow()
-                SubTaskRow2()
-                SubTaskRow3()
-            }
-            .padding()
-        }
+        )
         .padding(.horizontal, 20)
-    }
-}
-
-// just the closed task card
-struct TaskCardCollapsed: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 25)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                Circle()
-                    .frame(width: 10, height: 10)
-                    .foregroundStyle(OceanBluePalette.ScubaCyan.color)
-                VStack(alignment: .leading) {
-                    Text("Reply to team messages")
-                        .font(.headline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
-                }
-                Spacer()
-                Text(">")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-struct TaskCardCollapsed2: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 25)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                Circle()
-                    .frame(width: 10, height: 10)
-                    .foregroundStyle(OceanBluePalette.ScubaCyan.color)
-                VStack(alignment: .leading) {
-                    Text("15-min walk outside")
-                        .font(.headline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
-                }
-                Spacer()
-                Text(">")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-// one of the ai breakdown step rows
-struct BreakdownStepCard: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    // step number
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text("Define the goal clearly so the next steps are obvious")
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                // the time estimate
-                Text("placeholder")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-struct BreakdownStepCard2: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text("Gather the materials and notes you already have")
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                Text("placeholder")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-struct BreakdownStepCard3: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text("Break the hard parts into smaller actions")
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                Text("placeholder")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-struct BreakdownStepCard4: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text("Do the first focused push without switching apps")
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                Text("placeholder")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-struct BreakdownStepCard5: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20)
-                .foregroundStyle(IceWhitePalette.PureSnow.color)
-            HStack {
-                ZStack {
-                    Circle()
-                        .frame(width: 32, height: 32)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
-                        .font(.caption)
-                        .bold()
-                        .foregroundStyle(.white)
-                }
-                Text("Review what got done and lock the next move")
-                    .font(.subheadline)
-                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Spacer()
-                Text("placeholder")
-                    .font(.caption)
-                    .foregroundStyle(.gray)
-            }
-            .padding()
-        }
-        .padding(.horizontal, 20)
-    }
-}
-
-// row for picking an app to block
-struct AppSelectRow: View {
-    var body: some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 8)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(ContentView.Background3)
-            Text("Amazon")
-                .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-            Spacer()
-            Circle()
-                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                .frame(width: 22, height: 22)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-}
-
-struct AppSelectRow2: View {
-    var body: some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 8)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(ContentView.Background3)
-            Text("Calendar")
-                .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-            Spacer()
-            Circle()
-                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                .frame(width: 22, height: 22)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-}
-
-struct AppSelectRow3: View {
-    var body: some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 8)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(ContentView.Background3)
-            Text("Chrome")
-                .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-            Spacer()
-            Circle()
-                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                .frame(width: 22, height: 22)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-}
-
-struct AppSelectRow4: View {
-    var body: some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 8)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(ContentView.Background3)
-            Text("Discord")
-                .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-            Spacer()
-            Circle()
-                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                .frame(width: 22, height: 22)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-}
-
-struct AppSelectRow5: View {
-    var body: some View {
-        HStack {
-            RoundedRectangle(cornerRadius: 8)
-                .frame(width: 36, height: 36)
-                .foregroundStyle(ContentView.Background3)
-            Text("FaceTime")
-                .font(.body)
-                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-            Spacer()
-            Circle()
-                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                .frame(width: 22, height: 22)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-}
-
-// color circle for new task
-struct ColorDot: View {
-    var body: some View {
-        Circle()
-            .frame(width: 36, height: 36)
-            .foregroundStyle(OceanBluePalette.OceanBlue.color)
     }
 }
 
 struct Dashboard: View {
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    
     var body: some View {
+        let tasks = getTasks(tasksRaw)
         VStack(spacing: 0) {
-            // top dark header blob
+            // top dark header
             ZStack(alignment: .top) {
                 RoundedRectangle(cornerRadius: 60)
                     .foregroundStyle(ContentView.Background3)
@@ -600,7 +231,6 @@ struct Dashboard: View {
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
                         Spacer()
-                        // streak pill, number later
                         ZStack {
                             RoundedRectangle(cornerRadius: 20)
                                 .frame(width: 100, height: 36)
@@ -613,7 +243,7 @@ struct Dashboard: View {
                     .padding(.horizontal, 25)
                     .padding(.top, 50)
                     
-                    // screentime big number
+                    // screentime
                     Text("placeholder")
                         .font(.system(size: 56, weight: .bold))
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -623,8 +253,8 @@ struct Dashboard: View {
                         .font(.caption)
                         .foregroundStyle(SkyBluePalette.SummerSky.color)
                     
-                    // blue button -> focus setup
-                    NavigationLink(destination: FocusSetupPage().toolbar(.hidden, for: .navigationBar)) {
+                    // goes to focus setup
+                    NavigationLink(destination: FocusSetupPage()) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 30)
                                 .frame(height: 55)
@@ -643,7 +273,7 @@ struct Dashboard: View {
             .ignoresSafeArea(edges: .top)
             
             
-            // the app usage cards row
+            // app cards
             ZStack{
                 RoundedRectangle(cornerRadius: 30)
                     .frame(maxWidth: .infinity, maxHeight: 150)
@@ -657,7 +287,7 @@ struct Dashboard: View {
                 }
             }
             
-            // todays tasks section
+            // tasks
             ZStack {
                 RoundedRectangle(cornerRadius: 0)
                     .foregroundStyle(IceWhitePalette.GlacierFrost.color)
@@ -672,7 +302,7 @@ struct Dashboard: View {
                             .padding(.leading, 20)
                         
                         Spacer()
-                        NavigationLink(destination: NewTaskPage().toolbar(.hidden, for: .navigationBar)) {
+                        NavigationLink(destination: NewTaskPage()) {
                             Text("+ Add task")
                                 .font(.subheadline)
                                 .bold()
@@ -684,19 +314,17 @@ struct Dashboard: View {
                     
                     ScrollView {
                         VStack(spacing: 12) {
-                            TaskCardExpanded()
-                            TaskCardCollapsed()
-                            TaskCardCollapsed2()
+                            ForEach(0..<tasks.count, id: \.self) { i in
+                                TaskRow(index: i)
+                            }
                         }
                     }
                     
-                    TabBarPlaceholder()
                 }
             }
             
             
         }
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 #Preview {
@@ -704,9 +332,11 @@ struct Dashboard: View {
 }
 
 struct TasksPage: View {
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    
     var body: some View {
+        let tasks = getTasks(tasksRaw)
         VStack(spacing: 0) {
-            // same vibe as dashboard header but for tasks
             ZStack(alignment: .top) {
                 RoundedRectangle(cornerRadius: 60)
                     .foregroundStyle(ContentView.Background3)
@@ -717,7 +347,6 @@ struct TasksPage: View {
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
                         Spacer()
-                        // time remaining thing
                         ZStack {
                             RoundedRectangle(cornerRadius: 20)
                                 .frame(width: 100, height: 36)
@@ -730,7 +359,6 @@ struct TasksPage: View {
                     .padding(.horizontal, 25)
                     .padding(.top, 50)
                     
-                    // how many tasks left
                     Text("placeholder")
                         .font(.system(size: 72, weight: .bold))
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -740,8 +368,7 @@ struct TasksPage: View {
                         .font(.caption)
                         .foregroundStyle(SkyBluePalette.SummerSky.color)
                     
-                    // add task blue button
-                    NavigationLink(destination: NewTaskPage().toolbar(.hidden, for: .navigationBar)) {
+                    NavigationLink(destination: NewTaskPage()) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 30)
                                 .frame(height: 55)
@@ -766,18 +393,16 @@ struct TasksPage: View {
                 VStack {
                     ScrollView {
                         VStack(spacing: 12) {
-                            TaskCardExpanded()
-                            TaskCardCollapsed()
-                            TaskCardCollapsed2()
+                            ForEach(0..<tasks.count, id: \.self) { i in
+                                TaskRow(index: i)
+                            }
                         }
                         .padding(.top, 20)
                     }
                     
-                    TabBarPlaceholder()
                 }
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -786,14 +411,25 @@ struct TasksPage: View {
 }
 
 struct NewTaskPage: View {
-    @Environment(\.dismiss) var dismiss
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    @State var taskText = ""
+    // 1 easy 10 hard
+    @State var difficulty = 5
+    
+    var difficultyLabel: String {
+        if difficulty <= 3 {
+            return "Easy"
+        } else if difficulty <= 7 {
+            return "Medium"
+        } else {
+            return "Hard"
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // top bar back / title / save
             HStack {
-                Button {
-                    dismiss()
-                } label: {
+                NavigationLink(destination: Dashboard()) {
                     Text("Back")
                         .font(.body)
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
@@ -804,24 +440,33 @@ struct NewTaskPage: View {
                     .bold()
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                 Spacer()
-                ZStack {
-                    RoundedRectangle(cornerRadius: 20)
-                        .frame(width: 70, height: 36)
-                        .foregroundStyle(SkyBluePalette.SkyGlow.color)
+                // save adds it then u can hit back
+                Button {
+                    if taskText != "" {
+                        var tasks = getTasks(tasksRaw)
+                        tasks.append(taskText)
+                        tasksRaw = makeTasksRaw(tasks)
+                        taskText = ""
+                    }
+                } label: {
                     Text("Save")
                         .font(.subheadline)
                         .bold()
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(SkyBluePalette.SkyGlow.color)
+                        .cornerRadius(20)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
             .padding(.bottom, 30)
             
-            Text("Describe what you need to get done.")
+            // type here
+            TextField("Describe what you need to get done.", text: $taskText)
                 .font(.title2)
-                .foregroundStyle(.gray)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             
@@ -835,7 +480,6 @@ struct NewTaskPage: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             
-            // priority box
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
                     .frame(height: 50)
@@ -844,7 +488,7 @@ struct NewTaskPage: View {
                     Circle()
                         .frame(width: 12, height: 12)
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("Medium")
+                    Text(difficultyLabel)
                         .font(.body)
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                     Spacer()
@@ -854,27 +498,30 @@ struct NewTaskPage: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
             
-            Text("COLOR")
+            Text("DIFFICULTY")
                 .font(.caption)
                 .foregroundStyle(.gray)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)
             
-            HStack(spacing: 16) {
-                ColorDot()
-                ColorDot()
-                ColorDot()
-                ColorDot()
-                ColorDot()
-                ColorDot()
+            // balls 1-10 left easy right hard
+            HStack(spacing: 8) {
+                ForEach(1...10, id: \.self) { n in
+                    Button {
+                        difficulty = n
+                    } label: {
+                        Circle()
+                            .frame(width: 28, height: 28)
+                            .foregroundStyle(n <= difficulty ? (n <= 3 ? SkyBluePalette.SkyGlow.color : (n <= 7 ? OceanBluePalette.OceanBlue.color : MidnightNavyPalette.MidnightNavy.color)) : IceWhitePalette.ArcticBreeze.color)
+                    }
+                }
             }
             .padding(.horizontal, 20)
             
             Spacer()
             
-            // ai break it down button -> breakdown page
-            NavigationLink(destination: BreakdownPage().toolbar(.hidden, for: .navigationBar)) {
+            NavigationLink(destination: BreakdownPage()) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 55)
@@ -888,7 +535,6 @@ struct NewTaskPage: View {
             .padding(.bottom, 40)
         }
         .background(IceWhitePalette.PureSnow.color)
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -896,11 +542,73 @@ struct NewTaskPage: View {
     NewTaskPage()
 }
 
-struct BreakdownPage: View {
-    @Environment(\.dismiss) var dismiss
+// page when u click a task
+struct TaskDetailPage: View {
+    var index: Int
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    @State var text = ""
+    
     var body: some View {
         VStack(spacing: 0) {
-            // light blue header
+            HStack {
+                NavigationLink(destination: Dashboard()) {
+                    Text("Back")
+                        .font(.body)
+                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                }
+                Spacer()
+                Text("Task")
+                    .font(.title3)
+                    .bold()
+                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                Spacer()
+                // save the edited text
+                Button {
+                    var tasks = getTasks(tasksRaw)
+                    if index < tasks.count {
+                        tasks[index] = text
+                        tasksRaw = makeTasksRaw(tasks)
+                    }
+                } label: {
+                    Text("Save")
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(SkyBluePalette.SkyGlow.color)
+                        .cornerRadius(20)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 30)
+            
+            // their description
+            TextField("Describe what you need to get done.", text: $text)
+                .font(.title2)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                .padding(.horizontal, 20)
+            
+            Spacer()
+        }
+        .background(IceWhitePalette.PureSnow.color)
+        .onAppear {
+            let tasks = getTasks(tasksRaw)
+            if index < tasks.count {
+                text = tasks[index]
+            }
+        }
+    }
+}
+
+#Preview {
+    TaskDetailPage(index: 0)
+}
+
+struct BreakdownPage: View {
+    var body: some View {
+        VStack(spacing: 0) {
             ZStack(alignment: .top) {
                 RoundedRectangle(cornerRadius: 40)
                     .foregroundStyle(ContentView.Background4)
@@ -925,7 +633,6 @@ struct BreakdownPage: View {
                         .bold()
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                     
-                    // little stats cards, numbers later
                     HStack(spacing: 12) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 18)
@@ -953,17 +660,16 @@ struct BreakdownPage: View {
             
             ScrollView {
                 VStack(spacing: 12) {
-                    BreakdownStepCard()
-                    BreakdownStepCard2()
-                    BreakdownStepCard3()
-                    BreakdownStepCard4()
-                    BreakdownStepCard5()
+                    BreakdownStepCard(text: "Define the goal clearly so the next steps are obvious")
+                    BreakdownStepCard(text: "Gather the materials and notes you already have")
+                    BreakdownStepCard(text: "Break the hard parts into smaller actions")
+                    BreakdownStepCard(text: "Do the first focused push without switching apps")
+                    BreakdownStepCard(text: "Review what got done and lock the next move")
                 }
                 .padding(.top, 20)
             }
             
-            // add the task
-            NavigationLink(destination: TasksPage().toolbar(.hidden, for: .navigationBar)) {
+            NavigationLink(destination: TasksPage()) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 55)
@@ -976,9 +682,7 @@ struct BreakdownPage: View {
             .padding(.horizontal, 20)
             .padding(.top, 10)
             
-            Button {
-                dismiss()
-            } label: {
+            NavigationLink(destination: NewTaskPage()) {
                 Text("Back")
                     .font(.body)
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
@@ -987,7 +691,6 @@ struct BreakdownPage: View {
             .padding(.bottom, 30)
         }
         .background(ContentView.Background2)
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -995,9 +698,42 @@ struct BreakdownPage: View {
     BreakdownPage()
 }
 
-// bottom half when "all apps" is picked
-struct FocusSetupAllAppsBottom: View {
+struct BreakdownStepCard: View {
+    var text: String
     var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 20)
+                .foregroundStyle(IceWhitePalette.PureSnow.color)
+            HStack {
+                ZStack {
+                    Circle()
+                        .frame(width: 32, height: 32)
+                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                    Text("placeholder")
+                        .font(.caption)
+                        .bold()
+                        .foregroundStyle(.white)
+                }
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                Spacer()
+                Text("placeholder")
+                    .font(.caption)
+                    .foregroundStyle(.gray)
+            }
+            .padding()
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+// bottom for all apps mode
+struct FocusSetupAllAppsBottom: View {
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    
+    var body: some View {
+        let tasks = getTasks(tasksRaw)
         VStack(alignment: .leading, spacing: 16) {
             ZStack {
                 RoundedRectangle(cornerRadius: 25)
@@ -1025,17 +761,17 @@ struct FocusSetupAllAppsBottom: View {
             }
             .padding(.horizontal, 20)
             
-            TaskCardExpanded()
-            TaskCardCollapsed()
+            ForEach(0..<tasks.count, id: \.self) { i in
+                TaskRow(index: i)
+            }
         }
     }
 }
 
-// bottom half when "select apps" is picked
+// bottom for select apps mode
 struct FocusSetupSelectAppsBottom: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // search bar fake
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
                     .frame(height: 44)
@@ -1050,13 +786,11 @@ struct FocusSetupSelectAppsBottom: View {
             }
             .padding(.horizontal, 20)
             
-            VStack(spacing: 4) {
-                AppSelectRow()
-                AppSelectRow2()
-                AppSelectRow3()
-                AppSelectRow4()
-                AppSelectRow5()
-            }
+            AppSelectRow(name: "Amazon")
+            AppSelectRow(name: "Calendar")
+            AppSelectRow(name: "Chrome")
+            AppSelectRow(name: "Discord")
+            AppSelectRow(name: "FaceTime")
             
             Text("BREAKS")
                 .font(.caption)
@@ -1064,7 +798,6 @@ struct FocusSetupSelectAppsBottom: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
             
-            // break count buttons, numbers later
             HStack(spacing: 0) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 16)
@@ -1096,21 +829,38 @@ struct FocusSetupSelectAppsBottom: View {
     }
 }
 
+struct AppSelectRow: View {
+    var name: String
+    var body: some View {
+        HStack {
+            RoundedRectangle(cornerRadius: 8)
+                .frame(width: 36, height: 36)
+                .foregroundStyle(ContentView.Background3)
+            Text(name)
+                .font(.body)
+                .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+            Spacer()
+            Circle()
+                .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
+                .frame(width: 22, height: 22)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+}
+
 struct FocusSetupPage: View {
-    @Environment(\.dismiss) var dismiss
-    // flips the bottom content, doesnt leave the page
+    // switches the bottom half
     @State var showSelectApps = false
+    
     var body: some View {
         VStack(spacing: 0) {
-            // dark header again
             ZStack(alignment: .top) {
                 RoundedRectangle(cornerRadius: 40)
                     .foregroundStyle(ContentView.Background3)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Button {
-                            dismiss()
-                        } label: {
+                        NavigationLink(destination: Dashboard()) {
                             Text("Back")
                                 .font(.body)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -1121,7 +871,6 @@ struct FocusSetupPage: View {
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
                         Spacer()
-                        // spacer so title stays centered
                         Text("Back")
                             .font(.body)
                             .foregroundStyle(.clear)
@@ -1156,7 +905,7 @@ struct FocusSetupPage: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
                     
-                    // these 2 just switch the bottom, no navigation
+                    // these just flip the bottom
                     HStack(spacing: 0) {
                         Button {
                             showSelectApps = false
@@ -1194,7 +943,6 @@ struct FocusSetupPage: View {
                 }
             }
             
-            // start focus
             ZStack {
                 RoundedRectangle(cornerRadius: 30)
                     .frame(height: 55)
@@ -1207,7 +955,6 @@ struct FocusSetupPage: View {
             .padding(.bottom, 40)
         }
         .background(IceWhitePalette.GlacierFrost.color)
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
