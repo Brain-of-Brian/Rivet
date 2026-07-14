@@ -248,16 +248,21 @@ struct TaskCardExpanded: View {
             RoundedRectangle(cornerRadius: 25)
                 .foregroundStyle(IceWhitePalette.PureSnow.color)
             VStack(alignment: .leading, spacing: 10) {
+                // same layout as the other task cards
                 HStack {
                     Circle()
                         .frame(width: 10, height: 10)
-                        .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("Finish design brief")
-                        .font(.headline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                        .foregroundStyle(OceanBluePalette.ScubaCyan.color)
+                    VStack(alignment: .leading) {
+                        Text("Finish design brief")
+                            .font(.headline)
+                            .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                        Text("placeholder")
+                            .font(.caption)
+                            .foregroundStyle(.gray)
+                    }
                     Spacer()
-                    // like 1/3 done type thing
-                    Text("placeholder")
+                    Text(">")
                         .font(.caption)
                         .foregroundStyle(.gray)
                 }
