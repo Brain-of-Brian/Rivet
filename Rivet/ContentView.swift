@@ -294,7 +294,7 @@ struct Dashboard: View {
                     .foregroundStyle(ContentView.Background3)
                 VStack {
                     HStack {
-                        Text("placeholder")
+                        Text("Dashboard")
                             .font(.largeTitle)
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -303,7 +303,7 @@ struct Dashboard: View {
                             RoundedRectangle(cornerRadius: 20)
                                 .frame(width: 100, height: 36)
                                 .foregroundStyle(MidnightNavyPalette.DeepMariner.color)
-                            Text("placeholder")
+                            Text("streak  ...")
                                 .font(.caption)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
@@ -311,21 +311,17 @@ struct Dashboard: View {
                     .padding(.horizontal, 25)
                     .padding(.top, 50)
                     
-                    Text("placeholder")
+                    Text("screen time...")
                         .font(.system(size: 56, weight: .bold))
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
                         .padding(.top, 20)
-                    
-                    Text("placeholder")
-                        .font(.caption)
-                        .foregroundStyle(SkyBluePalette.SummerSky.color)
                     
                     NavigationLink(destination: FocusSetupPage().toolbar(.hidden, for: .navigationBar)) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 30)
                                 .frame(height: 55)
                                 .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                            Text("placeholder")
+                            Text("start focus session")
                                 .font(.headline)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
