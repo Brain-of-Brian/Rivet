@@ -133,6 +133,113 @@ func makeDoneRaw(_ list: [Int]) -> String {
     return parts.joined(separator: "|||")
 }
 
+// same delete for every task screen — pulls one task out + fixes done indexes
+func deleteTaskAt(_ index: Int, tasksRaw: inout String, doneRaw: inout String) {
+    var tasks = getTasks(tasksRaw)
+    if index < 0 || index >= tasks.count {
+        return
+    }
+    tasks.remove(at: index)
+    tasksRaw = makeTasksRaw(tasks)
+    
+    var newDones: [Int] = []
+    for d in getDoneIndexes(doneRaw) {
+        if d < index {
+            newDones.append(d)
+        } else if d > index {
+            newDones.append(d - 1)
+        }
+    }
+    doneRaw = makeDoneRaw(newDones)
+}
+
+// same save for every task screen
+func saveTaskAt(_ index: Int, name: String, description: String, tasksRaw: inout String) {
+    var tasks = getTasks(tasksRaw)
+    if index < 0 || index >= tasks.count {
+        return
+    }
+    tasks[index] = makePackedTask(name, description)
+    tasksRaw = makeTasksRaw(tasks)
+}
+
+// bottom buttons every task page always uses (shells for now)
+struct TaskScreenBottomActions: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Button {
+                // confirm done — empty shell for now
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                    Text("Confirm task is done")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+            
+            Button {
+                // AI break it down — empty shell for now
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30)
+                        .frame(height: 55)
+                        .foregroundStyle(ContentView.Background1)
+                    Text("AI break it down")
+                        .font(.headline)
+                        .foregroundStyle(IceWhitePalette.PureSnow.color)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 40)
+    }
+}
+
+// Delete + Save toolbar — same for every task detail screen going forward
+struct TaskScreenToolbarModifier: ViewModifier {
+    var index: Int
+    @Binding var name: String
+    @Binding var text: String
+    @AppStorage("tasks") var tasksRaw = startingTasks
+    @AppStorage("doneIndexes") var doneRaw = ""
+    @Environment(\.dismiss) var dismiss
+    
+    func body(content: Content) -> some View {
+        content
+            .navigationTitle("Task")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button("Delete") {
+                        var tasksCopy = tasksRaw
+                        var donesCopy = doneRaw
+                        deleteTaskAt(index, tasksRaw: &tasksCopy, doneRaw: &donesCopy)
+                        tasksRaw = tasksCopy
+                        doneRaw = donesCopy
+                        dismiss()
+                    }
+                    .foregroundStyle(.red)
+                    
+                    Button("Save") {
+                        var tasksCopy = tasksRaw
+                        saveTaskAt(index, name: name, description: text, tasksRaw: &tasksCopy)
+                        tasksRaw = tasksCopy
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    // slap the standard task features on any future task page
+    func taskScreenFeatures(index: Int, name: Binding<String>, text: Binding<String>) -> some View {
+        modifier(TaskScreenToolbarModifier(index: index, name: name, text: text))
+    }
+}
+
 let startingTasks = "Finish design brief:::Review feedback and ship the brief|||Reply to team messages:::Catch up on Slack and email|||15-min walk outside:::Take a short walk to reset|||Review feedback notes:::Go through notes from design review|||Draft revised homepage:::Update the homepage layout|||Send to Jordan for review:::Send the latest draft over"
 
 // look toggles can all be on at once
@@ -626,7 +733,15 @@ struct TasksPage: View {
     
     var body: some View {
         let tasks = getTasks(tasksRaw)
-        VStack(spacing: 0) {
+        let dones = getDoneIndexes(doneRaw)
+        // how many left (not finished yet)
+        var remaining = 0
+        for i in 0..<tasks.count {
+            if !dones.contains(i) {
+                remaining += 1
+            }
+        }
+        return VStack(spacing: 0) {
             TopSafeHeader(cornerRadius: simplifyOn ? 40 : 60, contrastOn: contrastOn, fullColorsOn: fullColorsOn) {
                 VStack {
                     if simplifyOn {
@@ -665,7 +780,7 @@ struct TasksPage: View {
                         .padding(.horizontal, 25)
                         .padding(.top, 12)
                         
-                        Text("placeholder")
+                        Text("\(remaining)")
                             .font(.system(size: 72, weight: .bold))
                             .foregroundStyle(modeTextOnDark(contrastOn: contrastOn))
                             .padding(.top, 20)
@@ -858,7 +973,7 @@ struct NewTaskPage: View {
     }
 }
 
-// page when u click a task
+// page when u click a task — always uses the shared task features
 struct TaskDetailPage: View {
     var index: Int
     @AppStorage("tasks") var tasksRaw = startingTasks
@@ -884,50 +999,11 @@ struct TaskDetailPage: View {
             
             Spacer()
             
-            // empty shell — will confirm done later, always shown
-            Button {
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("Confirm task is done")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-            
-            // empty shell for now — doesn’t break anything down yet
-            Button {
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 30)
-                        .frame(height: 55)
-                        .foregroundStyle(ContentView.Background1)
-                    Text("AI break it down")
-                        .font(.headline)
-                        .foregroundStyle(IceWhitePalette.PureSnow.color)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 40)
+            // same bottom buttons every time
+            TaskScreenBottomActions()
         }
         .background(IceWhitePalette.PureSnow.color)
-        .navigationTitle("Task")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Save") {
-                    var tasks = getTasks(tasksRaw)
-                    if index < tasks.count {
-                        tasks[index] = makePackedTask(name, text)
-                        tasksRaw = makeTasksRaw(tasks)
-                    }
-                }
-            }
-        }
+        .taskScreenFeatures(index: index, name: $name, text: $text)
         .onAppear {
             let tasks = getTasks(tasksRaw)
             if index < tasks.count {
