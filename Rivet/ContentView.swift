@@ -266,19 +266,18 @@ struct Dashboard: View {
                     }
                     .padding(.horizontal, 25)
                     .padding(.top, 25)
+                    .padding(.bottom, 20)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 350)
             .ignoresSafeArea(edges: .top)
             
             
-            // app cards
+            // app cards pulled right under the header, tiny gap
             ZStack{
                 RoundedRectangle(cornerRadius: 30)
-                    .frame(maxWidth: .infinity, maxHeight: 150)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .foregroundStyle(ContentView.Background2)
-                    .padding(.bottom, 15)
                 HStack(spacing: 12){
                     AppUsageCard()
                     AppUsageCard()
@@ -286,8 +285,11 @@ struct Dashboard: View {
                     AppUsageCard()
                 }
             }
+            .frame(height: 120)
+            .padding(.top, 4)
+            .padding(.horizontal, 10)
             
-            // tasks
+            // tasks — only this list scrolls
             ZStack {
                 RoundedRectangle(cornerRadius: 0)
                     .foregroundStyle(IceWhitePalette.GlacierFrost.color)
@@ -312,16 +314,19 @@ struct Dashboard: View {
                     }
                     .padding(.top, 15)
                     
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(0..<tasks.count, id: \.self) { i in
-                                TaskRow(index: i)
-                            }
+                    List {
+                        ForEach(0..<tasks.count, id: \.self) { i in
+                            TaskRow(index: i)
+                                .listRowInsets(EdgeInsets())
+                                .listRowBackground(Color.clear)
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                     
                 }
             }
+            .frame(maxHeight: .infinity)
             
             
         }
@@ -390,18 +395,19 @@ struct TasksPage: View {
                 RoundedRectangle(cornerRadius: 0)
                     .foregroundStyle(IceWhitePalette.GlacierFrost.color)
                 
-                VStack {
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(0..<tasks.count, id: \.self) { i in
-                                TaskRow(index: i)
-                            }
-                        }
-                        .padding(.top, 20)
+                // only the tasks scroll
+                List {
+                    ForEach(0..<tasks.count, id: \.self) { i in
+                        TaskRow(index: i)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
                     }
-                    
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .padding(.top, 20)
             }
+            .frame(maxHeight: .infinity)
         }
     }
 }
