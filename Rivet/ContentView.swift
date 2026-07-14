@@ -100,7 +100,7 @@ struct TabBarPlaceholder: View {
                 VStack {
                     Text("Dashboard")
                         .font(.caption)
-                    Text("icon....")
+                    Text("icon")
                         .font(.caption2)
                 }
             }
@@ -110,16 +110,16 @@ struct TabBarPlaceholder: View {
                 VStack {
                     Text("Tasks")
                         .font(.caption)
-                    Text("icon...")
+                    Text("icon")
                         .font(.caption2)
                 }
             }
             .frame(maxWidth: .infinity)
             
             VStack {
-                Text("settings")
+                Text("Settings")
                     .font(.caption)
-                Text("icon...")
+                Text("icon")
                     .font(.caption2)
             }
             .frame(maxWidth: .infinity)
@@ -131,6 +131,8 @@ struct TabBarPlaceholder: View {
 }
 
 struct AppUsageCard: View {
+    var appName: String = "App"
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 25)
@@ -140,10 +142,10 @@ struct AppUsageCard: View {
                 RoundedRectangle(cornerRadius: 10)
                     .frame(width: 30, height: 30)
                     .foregroundStyle(ContentView.Background3)
-                Text("later")
+                Text(appName)
                     .font(.caption2)
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                Text("screentime ex")
+                Text("placeholder")
                     .font(.caption2)
                     .foregroundStyle(.red)
             }
@@ -151,7 +153,41 @@ struct AppUsageCard: View {
     }
 }
 
+struct SubTaskRow: View {
+    var title: String = "placeholder"
+    @State private var isChecked = false
+    
+    var body: some View {
+        Button {
+            isChecked.toggle()
+        } label: {
+            HStack {
+                ZStack {
+                    Circle()
+                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
+                        .frame(width: 18, height: 18)
+                    if isChecked {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(OceanBluePalette.OceanBlue.color)
+                    }
+                }
+                Text(title)
+                    .font(.subheadline)
+                    .strikethrough(isChecked)
+                    .foregroundStyle(isChecked ? .gray : MidnightNavyPalette.MidnightNavy.color)
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct TaskCardExpanded: View {
+    var title: String = "Finish design brief"
+    var status: String = "placeholder"
+    var subtasks: [String] = ["Review feedback notes", "Draft revised homepage", "Send to Jordan for review"]
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 25)
@@ -161,37 +197,16 @@ struct TaskCardExpanded: View {
                     Circle()
                         .frame(width: 10, height: 10)
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
+                    Text(title)
                         .font(.headline)
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                     Spacer()
-                    Text("e")
+                    Text(status)
                         .font(.caption)
                         .foregroundStyle(.gray)
                 }
-                HStack {
-                    Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    Text("placeholder")
-                        .font(.subheadline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                }
-                HStack {
-                    Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    Text("placeholder")
-                        .font(.subheadline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                }
-                HStack {
-                    Circle()
-                        .stroke(OceanBluePalette.OceanBlue.color, lineWidth: 2)
-                        .frame(width: 18, height: 18)
-                    Text("placeholder")
-                        .font(.subheadline)
-                        .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
+                ForEach(subtasks, id: \.self) { subtask in
+                    SubTaskRow(title: subtask)
                 }
             }
             .padding()
@@ -201,6 +216,9 @@ struct TaskCardExpanded: View {
 }
 
 struct TaskCardCollapsed: View {
+    var title: String = "Reply to team messages"
+    var status: String = "placeholder"
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 25)
@@ -210,15 +228,15 @@ struct TaskCardCollapsed: View {
                     .frame(width: 10, height: 10)
                     .foregroundStyle(OceanBluePalette.ScubaCyan.color)
                 VStack(alignment: .leading) {
-                    Text("placeholder")
+                    Text(title)
                         .font(.headline)
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("placeholder")
+                    Text(status)
                         .font(.caption)
                         .foregroundStyle(.gray)
                 }
                 Spacer()
-                Text("placeholder")
+                Text(">")
                     .font(.caption)
                     .foregroundStyle(.gray)
             }
@@ -229,6 +247,8 @@ struct TaskCardCollapsed: View {
 }
 
 struct BreakdownStepCard: View {
+    var stepText: String = "Define the goal clearly so the next steps are obvious"
+    
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 20)
@@ -243,7 +263,7 @@ struct BreakdownStepCard: View {
                         .bold()
                         .foregroundStyle(.white)
                 }
-                Text("placeholder")
+                Text(stepText)
                     .font(.subheadline)
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                 Spacer()
@@ -258,12 +278,14 @@ struct BreakdownStepCard: View {
 }
 
 struct AppSelectRow: View {
+    var appName: String = "App"
+    
     var body: some View {
         HStack {
             RoundedRectangle(cornerRadius: 8)
                 .frame(width: 36, height: 36)
                 .foregroundStyle(ContentView.Background3)
-            Text("placeholder")
+            Text(appName)
                 .font(.body)
                 .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
             Spacer()
@@ -284,8 +306,6 @@ struct ColorDot: View {
     }
 }
 
-// MARK: - Dashboard
-
 struct Dashboard: View {
     var body: some View {
         VStack(spacing: 0) {
@@ -303,7 +323,7 @@ struct Dashboard: View {
                             RoundedRectangle(cornerRadius: 20)
                                 .frame(width: 100, height: 36)
                                 .foregroundStyle(MidnightNavyPalette.DeepMariner.color)
-                            Text("streak  ...")
+                            Text("placeholder")
                                 .font(.caption)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
@@ -311,17 +331,21 @@ struct Dashboard: View {
                     .padding(.horizontal, 25)
                     .padding(.top, 50)
                     
-                    Text("screen time...")
+                    Text("placeholder")
                         .font(.system(size: 56, weight: .bold))
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
                         .padding(.top, 20)
+                    
+                    Text("SCREEN TIME TODAY")
+                        .font(.caption)
+                        .foregroundStyle(SkyBluePalette.SummerSky.color)
                     
                     NavigationLink(destination: FocusSetupPage().toolbar(.hidden, for: .navigationBar)) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 30)
                                 .frame(height: 55)
                                 .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                            Text("start focus session")
+                            Text("Start Focus session")
                                 .font(.headline)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
@@ -340,10 +364,10 @@ struct Dashboard: View {
                     .foregroundStyle(ContentView.Background2)
                     .padding(.bottom, 15)
                 HStack(spacing: 12) {
-                    AppUsageCard()
-                    AppUsageCard()
-                    AppUsageCard()
-                    AppUsageCard()
+                    AppUsageCard(appName: "Instagram")
+                    AppUsageCard(appName: "TikTok")
+                    AppUsageCard(appName: "Safari")
+                    AppUsageCard(appName: "YouTube")
                 }
             }
             
@@ -353,7 +377,7 @@ struct Dashboard: View {
                 
                 VStack {
                     HStack {
-                        Text("placeholder")
+                        Text("TODAY'S TASKS")
                             .font(.title3)
                             .bold()
                             .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
@@ -361,7 +385,7 @@ struct Dashboard: View {
                         
                         Spacer()
                         NavigationLink(destination: NewTaskPage().toolbar(.hidden, for: .navigationBar)) {
-                            Text("placeholder")
+                            Text("+ Add task")
                                 .font(.subheadline)
                                 .bold()
                                 .foregroundStyle(OceanBluePalette.OceanBlue.color)
@@ -374,7 +398,7 @@ struct Dashboard: View {
                         VStack(spacing: 12) {
                             TaskCardExpanded()
                             TaskCardCollapsed()
-                            TaskCardCollapsed()
+                            TaskCardCollapsed(title: "15-min walk outside", status: "placeholder")
                         }
                     }
                     
@@ -390,8 +414,6 @@ struct Dashboard: View {
     Dashboard()
 }
 
-// MARK: - Tasks Page
-
 struct TasksPage: View {
     var body: some View {
         VStack(spacing: 0) {
@@ -400,7 +422,7 @@ struct TasksPage: View {
                     .foregroundStyle(ContentView.Background3)
                 VStack {
                     HStack {
-                        Text("placeholder")
+                        Text("Tasks")
                             .font(.largeTitle)
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -422,7 +444,7 @@ struct TasksPage: View {
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
                         .padding(.top, 20)
                     
-                    Text("placeholder")
+                    Text("TASKS REMAINING")
                         .font(.caption)
                         .foregroundStyle(SkyBluePalette.SummerSky.color)
                     
@@ -431,7 +453,7 @@ struct TasksPage: View {
                             RoundedRectangle(cornerRadius: 30)
                                 .frame(height: 55)
                                 .foregroundStyle(ContentView.Background1)
-                            Text("placeholder")
+                            Text("Add Task")
                                 .font(.headline)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
@@ -453,7 +475,7 @@ struct TasksPage: View {
                         VStack(spacing: 12) {
                             TaskCardExpanded()
                             TaskCardCollapsed()
-                            TaskCardCollapsed()
+                            TaskCardCollapsed(title: "15-min walk outside", status: "placeholder")
                         }
                         .padding(.top, 20)
                     }
@@ -481,12 +503,12 @@ struct NewTaskPage: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text("placeholder")
+                    Text("Back")
                         .font(.body)
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
                 }
                 Spacer()
-                Text("placeholder")
+                Text("New Task")
                     .font(.title3)
                     .bold()
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
@@ -495,7 +517,7 @@ struct NewTaskPage: View {
                     RoundedRectangle(cornerRadius: 20)
                         .frame(width: 70, height: 36)
                         .foregroundStyle(SkyBluePalette.SkyGlow.color)
-                    Text("placeholder")
+                    Text("Save")
                         .font(.subheadline)
                         .bold()
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
@@ -505,14 +527,14 @@ struct NewTaskPage: View {
             .padding(.top, 20)
             .padding(.bottom, 30)
             
-            Text("placeholder")
+            Text("Describe what you need to get done.")
                 .font(.title2)
                 .foregroundStyle(.gray)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             
-            Text("placeholder")
+            Text("TASK")
                 .font(.caption)
                 .foregroundStyle(.gray)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -530,20 +552,17 @@ struct NewTaskPage: View {
                     Circle()
                         .frame(width: 12, height: 12)
                         .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                    Text("placeholder")
+                    Text("Medium")
                         .font(.body)
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                     Spacer()
-                    Text("placeholder")
-                        .font(.caption)
-                        .foregroundStyle(.gray)
                 }
                 .padding(.horizontal, 20)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
             
-            Text("placeholder")
+            Text("COLOR")
                 .font(.caption)
                 .foregroundStyle(.gray)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -567,7 +586,7 @@ struct NewTaskPage: View {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 55)
                         .foregroundStyle(ContentView.Background1)
-                    Text("placeholder")
+                    Text("AI: Break it down")
                         .font(.headline)
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
                 }
@@ -599,18 +618,18 @@ struct BreakdownPage: View {
                         RoundedRectangle(cornerRadius: 20)
                             .frame(width: 130, height: 32)
                             .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                        Text("placeholder")
+                        Text("PLAN READY")
                             .font(.caption)
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
                     }
                     .padding(.top, 50)
                     
-                    Text("placeholder")
+                    Text("AI broke this into focused steps")
                         .font(.subheadline)
                         .foregroundStyle(MidnightNavyPalette.DeepMariner.color)
                     
-                    Text("placeholder")
+                    Text("Super hard task")
                         .font(.largeTitle)
                         .bold()
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
@@ -620,7 +639,7 @@ struct BreakdownPage: View {
                             RoundedRectangle(cornerRadius: 18)
                                 .frame(height: 50)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            Text("placeholder")
+                            Text("breakdown: placeholder")
                                 .font(.caption)
                                 .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                         }
@@ -628,7 +647,7 @@ struct BreakdownPage: View {
                             RoundedRectangle(cornerRadius: 18)
                                 .frame(height: 50)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
-                            Text("placeholder")
+                            Text("estimated: placeholder")
                                 .font(.caption)
                                 .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
                         }
@@ -642,11 +661,11 @@ struct BreakdownPage: View {
             
             ScrollView {
                 VStack(spacing: 12) {
-                    BreakdownStepCard()
-                    BreakdownStepCard()
-                    BreakdownStepCard()
-                    BreakdownStepCard()
-                    BreakdownStepCard()
+                    BreakdownStepCard(stepText: "Define the goal clearly so the next steps are obvious")
+                    BreakdownStepCard(stepText: "Gather the materials and notes you already have")
+                    BreakdownStepCard(stepText: "Break the hard parts into smaller actions")
+                    BreakdownStepCard(stepText: "Do the first focused push without switching apps")
+                    BreakdownStepCard(stepText: "Review what got done and lock the next move")
                 }
                 .padding(.top, 20)
             }
@@ -656,7 +675,7 @@ struct BreakdownPage: View {
                     RoundedRectangle(cornerRadius: 30)
                         .frame(height: 55)
                         .foregroundStyle(ContentView.Background1)
-                    Text("placeholder")
+                    Text("Add Task")
                         .font(.headline)
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
                 }
@@ -667,7 +686,7 @@ struct BreakdownPage: View {
             Button {
                 dismiss()
             } label: {
-                Text("placeholder")
+                Text("Back")
                     .font(.body)
                     .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
             }
@@ -693,10 +712,10 @@ struct FocusSetupAllAppsBottom: View {
                     .frame(height: 90)
                     .foregroundStyle(IceWhitePalette.PureSnow.color)
                 VStack(spacing: 6) {
-                    Text("placeholder")
+                    Text("All apps blocked")
                         .font(.headline)
                         .foregroundStyle(MidnightNavyPalette.MidnightNavy.color)
-                    Text("placeholder")
+                    Text("Distracting apps stay locked until you're done")
                         .font(.caption)
                         .foregroundStyle(.gray)
                 }
@@ -704,7 +723,7 @@ struct FocusSetupAllAppsBottom: View {
             .padding(.horizontal, 20)
             
             HStack {
-                Text("placeholder")
+                Text("UNTIL DONE")
                     .font(.caption)
                     .foregroundStyle(.gray)
                 Spacer()
@@ -728,7 +747,7 @@ struct FocusSetupSelectAppsBottom: View {
                     .frame(height: 44)
                     .foregroundStyle(IceWhitePalette.PureSnow.color)
                 HStack {
-                    Text("placeholder")
+                    Text("Search apps...")
                         .font(.body)
                         .foregroundStyle(.gray)
                     Spacer()
@@ -738,14 +757,14 @@ struct FocusSetupSelectAppsBottom: View {
             .padding(.horizontal, 20)
             
             VStack(spacing: 4) {
-                AppSelectRow()
-                AppSelectRow()
-                AppSelectRow()
-                AppSelectRow()
-                AppSelectRow()
+                AppSelectRow(appName: "Amazon")
+                AppSelectRow(appName: "Calendar")
+                AppSelectRow(appName: "Chrome")
+                AppSelectRow(appName: "Discord")
+                AppSelectRow(appName: "FaceTime")
             }
             
-            Text("placeholder")
+            Text("BREAKS")
                 .font(.caption)
                 .foregroundStyle(.gray)
                 .padding(.horizontal, 20)
@@ -796,28 +815,28 @@ struct FocusSetupPage: View {
                         Button {
                             dismiss()
                         } label: {
-                            Text("placeholder")
+                            Text("Back")
                                 .font(.body)
                                 .foregroundStyle(IceWhitePalette.PureSnow.color)
                         }
                         Spacer()
-                        Text("placeholder")
+                        Text("Focus Setup")
                             .font(.title3)
                             .bold()
                             .foregroundStyle(IceWhitePalette.PureSnow.color)
                         Spacer()
-                        Text("placeholder")
+                        Text("Back")
                             .font(.body)
                             .foregroundStyle(.clear)
                     }
                     .padding(.top, 50)
                     
-                    Text("placeholder")
+                    Text(showSelectApps ? "FOCUSING ON" : "STARTING WITH")
                         .font(.caption)
                         .foregroundStyle(SkyBluePalette.SummerSky.color)
                         .padding(.top, 20)
                     
-                    Text("placeholder")
+                    Text("Finish design brief")
                         .font(.title)
                         .bold()
                         .foregroundStyle(IceWhitePalette.PureSnow.color)
@@ -834,7 +853,7 @@ struct FocusSetupPage: View {
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("placeholder")
+                    Text("WHAT TO BLOCK")
                         .font(.caption)
                         .foregroundStyle(.gray)
                         .padding(.horizontal, 20)
@@ -848,7 +867,7 @@ struct FocusSetupPage: View {
                                 RoundedRectangle(cornerRadius: 20)
                                     .frame(height: 44)
                                     .foregroundStyle(showSelectApps ? IceWhitePalette.PureSnow.color : OceanBluePalette.OceanBlue.color)
-                                Text("placeholder")
+                                Text("All apps")
                                     .font(.subheadline)
                                     .foregroundStyle(showSelectApps ? MidnightNavyPalette.MidnightNavy.color : IceWhitePalette.PureSnow.color)
                             }
@@ -861,7 +880,7 @@ struct FocusSetupPage: View {
                                 RoundedRectangle(cornerRadius: 20)
                                     .frame(height: 44)
                                     .foregroundStyle(showSelectApps ? OceanBluePalette.OceanBlue.color : IceWhitePalette.PureSnow.color)
-                                Text("placeholder")
+                                Text("Select apps")
                                     .font(.subheadline)
                                     .foregroundStyle(showSelectApps ? IceWhitePalette.PureSnow.color : MidnightNavyPalette.MidnightNavy.color)
                             }
@@ -881,7 +900,7 @@ struct FocusSetupPage: View {
                 RoundedRectangle(cornerRadius: 30)
                     .frame(height: 55)
                     .foregroundStyle(OceanBluePalette.OceanBlue.color)
-                Text("placeholder")
+                Text("Start Focus Session")
                     .font(.headline)
                     .foregroundStyle(IceWhitePalette.PureSnow.color)
             }
